@@ -589,7 +589,13 @@ export function createConversationMethods(
         filters.push({ conversationId: { $in: matchingIds } } as FilterQuery<IConversation>);
       } catch (error) {
         logger.error('[getConvosByCursor] Error during meiliSearch', error);
-        throw new Error('Error during meiliSearch');
+        if (process.env.LOCAL_SEARCH_FALLBACK !== 'true') {
+          throw new Error('Error during meiliSearch');
+        }
+        // D-drive native fallback for installations without Meilisearch. This keeps
+        // the normal conversation API usable; indexed full-text search remains optional.
+        const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        filters.push({ title: { $regex: escaped, $options: 'i' } } as FilterQuery<IConversation>);
       }
     }
 
