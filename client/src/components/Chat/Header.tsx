@@ -18,6 +18,7 @@ import AddMultiConvo from './AddMultiConvo';
 import { useHasAccess } from '~/hooks';
 import { cn } from '~/utils';
 import store from '~/store';
+import EcosystemResolutionBadge from './EcosystemResolutionBadge';
 
 const defaultInterface = getConfigDefaults().interface;
 
@@ -83,6 +84,7 @@ function Header({
           <SubagentThreadLink threadId={parentConversationId} labelClassName="hidden lg:inline" />
         )}
         {!readOnly && <ModelSelector startupConfig={startupConfig} />}
+        {!readOnly && <EcosystemResolutionBadge />}
         {!readOnly && interfaceConfig.presets === true && interfaceConfig.modelSelect === true && (
           <PresetsMenu />
         )}
