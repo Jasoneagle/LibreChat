@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
+type SelectorIdentity = {
+  id?: string;
+  source_version?: string;
+  eligibility_evidence?: string;
+};
+
 type SelectorState = {
-  personality?: { id?: string };
-  brain?: { id?: string };
-  worker?: { id?: string };
-  node?: { id?: string };
+  personality?: SelectorIdentity;
+  brain?: SelectorIdentity;
+  worker?: SelectorIdentity;
+  node?: SelectorIdentity;
 };
 
 const SELECTORS = ['personality', 'brain', 'worker', 'node'] as const;
