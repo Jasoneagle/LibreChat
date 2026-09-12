@@ -12,6 +12,7 @@ import AddMultiConvo from './AddMultiConvo';
 import { useHasAccess } from '~/hooks';
 import { cn } from '~/utils';
 import store from '~/store';
+import EcosystemResolutionBadge from './EcosystemResolutionBadge';
 
 const defaultInterface = getConfigDefaults().interface;
 
@@ -54,6 +55,7 @@ function Header() {
               )}
             >
               <ModelSelector startupConfig={startupConfig} />
+              <EcosystemResolutionBadge />
               {interfaceConfig.presets === true && interfaceConfig.modelSelect && <PresetsMenu />}
               {hasAccessToBookmarks === true && <BookmarkMenu />}
               {hasAccessToMultiConvo === true && <AddMultiConvo />}
