@@ -540,6 +540,17 @@ endpoints:
         fetch: false
       titleConvo: false
       modelDisplayLabel: 'Local Ecosystem Selectors'
+    - name: 'Local-Ecosystem-Image'
+      apiKey: '${LIBRECHAT_GATEWAY_API_KEY}'
+      baseURL: 'http://127.0.0.1:4317/v1'
+      headers:
+        x-ecosystem-image: 'true'
+      models:
+        default:
+          - 'comfyui-image'
+        fetch: false
+      titleConvo: false
+      modelDisplayLabel: 'Local Ecosystem Image'
     # Set `provider: anthropic` to use the native Anthropic client instead of the
     # default OpenAI-compatible one — for Anthropic itself or Anthropic-compatible
     # gateways (e.g. AI gateways, OpenCode Zen). The `baseURL` must be the API root
