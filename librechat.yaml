@@ -551,6 +551,28 @@ endpoints:
         fetch: false
       titleConvo: false
       modelDisplayLabel: 'Local Ecosystem Image'
+    - name: 'Local-Ecosystem-Meshroom-Planner'
+      apiKey: '${LIBRECHAT_GATEWAY_API_KEY}'
+      baseURL: 'http://127.0.0.1:4317/v1'
+      headers:
+        x-ecosystem-meshroom-plan: 'true'
+      models:
+        default:
+          - 'meshroom-planner'
+        fetch: false
+      titleConvo: false
+      modelDisplayLabel: 'Local Ecosystem Meshroom Planner'
+    - name: 'Local-Ecosystem-Meshroom-Source-Manifest'
+      apiKey: '${LIBRECHAT_GATEWAY_API_KEY}'
+      baseURL: 'http://127.0.0.1:4317/v1'
+      headers:
+        x-ecosystem-meshroom-source-manifest: 'true'
+      models:
+        default:
+          - 'meshroom-source-manifest'
+        fetch: false
+      titleConvo: false
+      modelDisplayLabel: 'Local Ecosystem Meshroom Source Manifest'
     # Set `provider: anthropic` to use the native Anthropic client instead of the
     # default OpenAI-compatible one — for Anthropic itself or Anthropic-compatible
     # gateways (e.g. AI gateways, OpenCode Zen). The `baseURL` must be the API root
