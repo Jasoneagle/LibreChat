@@ -388,6 +388,16 @@ actions:
 #       - /path/to/obsidian/vault
 
 # Definition of custom endpoints
+modelSpecs:
+  list:
+    - name: 'callum-voss-local'
+      label: 'Callum Voss — Local Ecosystem'
+      description: 'Default private local text route through the admitted ACT1250 ecosystem gateway.'
+      default: true
+      preset:
+        endpoint: 'Local-Ecosystem-Selectors'
+        model: 'ecosystem-selector'
+
 endpoints:
   # assistants:
   #   disableBuilder: false # Disable Assistants Builder Interface by setting to `true`
@@ -534,12 +544,16 @@ endpoints:
       baseURL: 'http://127.0.0.1:4317/v1'
       headers:
         x-ecosystem-selector-state: 'true'
+        x-ecosystem-user-id: '{{LIBRECHAT_USER_ID}}'
+        x-ecosystem-conversation-id: '{{LIBRECHAT_BODY_CONVERSATIONID}}'
+        x-ecosystem-parent-message-id: '{{LIBRECHAT_BODY_PARENTMESSAGEID}}'
+        x-ecosystem-message-id: '{{LIBRECHAT_BODY_MESSAGEID}}'
       models:
         default:
           - 'ecosystem-selector'
         fetch: false
       titleConvo: false
-      modelDisplayLabel: 'Local Ecosystem Selectors'
+      modelDisplayLabel: 'Callum Voss — Local Ecosystem'
     - name: 'Local-Ecosystem-Image'
       apiKey: '${LIBRECHAT_GATEWAY_API_KEY}'
       baseURL: 'http://127.0.0.1:4317/v1'
