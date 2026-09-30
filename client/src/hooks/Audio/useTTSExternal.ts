@@ -14,10 +14,11 @@ type TUseTextToSpeech = {
   content?: TMessageContentParts[] | string;
   isLast?: boolean;
   index?: number;
+  voiceOverride?: string | null;
 };
 
 const useTTSExternal = (props?: TUseTextToSpeech) => {
-  const { messageId, content, isLast = false, index = 0 } = props ?? {};
+  const { messageId, content, isLast = false, index = 0, voiceOverride } = props ?? {};
 
   const isMouseDownRef = useRef(false);
   const timerRef = useRef<number | undefined>(undefined);
@@ -40,6 +41,7 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
     messageId,
     isLast,
     index,
+    voiceOverride,
   });
 
   useEffect(() => {

@@ -14,6 +14,7 @@ export function BrowserTTS({
   content,
   className,
   renderButton,
+  voiceUnavailableReason,
 }: TMessageAudio) {
   const localize = useLocalize();
   const playbackRate = useRecoilValue(store.playbackRate);
@@ -54,13 +55,20 @@ export function BrowserTTS({
   );
 
   const handleClick = () => {
+    if (voiceUnavailableReason) {
+      return;
+    }
     if (audioRef.current) {
       audioRef.current.muted = false;
     }
     toggleSpeech();
   };
 
-  const title = isSpeaking === true ? localize('com_ui_stop') : localize('com_ui_read_aloud');
+  const title = voiceUnavailableReason
+    ? `Read aloud unavailable: ${voiceUnavailableReason}`
+    : isSpeaking === true
+      ? localize('com_ui_stop')
+      : localize('com_ui_read_aloud');
 
   return (
     <>
@@ -70,6 +78,7 @@ export function BrowserTTS({
           title: title,
           icon: renderIcon(),
           isActive: isSpeaking,
+          isDisabled: Boolean(voiceUnavailableReason),
           className,
         })
       ) : (
@@ -107,6 +116,8 @@ export function ExternalTTS({
   content,
   className,
   renderButton,
+  voiceOverride,
+  voiceUnavailableReason,
 }: TMessageAudio) {
   const localize = useLocalize();
   const playbackRate = useRecoilValue(store.playbackRate);
@@ -116,6 +127,7 @@ export function ExternalTTS({
     index,
     messageId,
     content,
+    voiceOverride,
   });
 
   const renderIcon = () => {
@@ -151,14 +163,22 @@ export function ExternalTTS({
       {renderButton ? (
         renderButton({
           onClick: () => {
+            if (voiceUnavailableReason) {
+              return;
+            }
             if (audioRef.current) {
               audioRef.current.muted = false;
             }
             toggleSpeech();
           },
-          title: isSpeaking === true ? localize('com_ui_stop') : localize('com_ui_read_aloud'),
+          title: voiceUnavailableReason
+            ? `Read aloud unavailable: ${voiceUnavailableReason}`
+            : isSpeaking === true
+              ? localize('com_ui_stop')
+              : localize('com_ui_read_aloud'),
           icon: renderIcon(),
           isActive: isSpeaking,
+          isDisabled: Boolean(voiceUnavailableReason),
           className,
         })
       ) : (

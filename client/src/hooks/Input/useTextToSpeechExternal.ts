@@ -18,6 +18,7 @@ type TUseTTSExternal = {
   messageId?: string;
   isLast: boolean;
   index?: number;
+  voiceOverride?: string | null;
 };
 
 function useTextToSpeechExternal({
@@ -26,6 +27,7 @@ function useTextToSpeechExternal({
   messageId,
   isLast,
   index = 0,
+  voiceOverride,
 }: TUseTTSExternal) {
   const localize = useLocalize();
   const { showToast } = useToastContext();
@@ -34,6 +36,8 @@ function useTextToSpeechExternal({
   const playbackRate = useRecoilValue(store.playbackRate);
 
   const [downloadFile, setDownloadFile] = useState(false);
+  const selectedVoice = voiceOverride ?? voice ?? '';
+  const cacheKey = (text: string) => `tts:${selectedVoice}:${text}`;
 
   const promiseAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -107,7 +111,7 @@ function useTextToSpeechExternal({
 
         if (cacheTTS && inputText) {
           const cache = await caches.open('tts-responses');
-          const request = new Request(inputText);
+          const request = new Request(cacheKey(inputText));
           const response = new Response(audioBlob);
           cache.put(request, response);
         }
@@ -133,7 +137,7 @@ function useTextToSpeechExternal({
   });
 
   const startMutation = (text: string, download: boolean) => {
-    const formData = createFormData(text, voice ?? '');
+    const formData = createFormData(text, selectedVoice);
     setDownloadFile(download);
     processAudio(formData);
   };
@@ -147,7 +151,7 @@ function useTextToSpeechExternal({
   };
 
   const handleCachedResponse = async (text: string, download: boolean) => {
-    const cachedResponse = await caches.match(text);
+    const cachedResponse = await caches.match(cacheKey(text));
     if (!cachedResponse) {
       return startMutation(text, download);
     }
