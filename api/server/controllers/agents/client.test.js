@@ -1,4 +1,5 @@
 const mockCreateRun = jest.fn();
+const { createHash } = require('node:crypto');
 const mockCaptureAgentCheckpointGeneration = jest.fn();
 const mockDeleteAgentCheckpoint = jest.fn();
 const mockIsHITLEnabled = jest.fn().mockReturnValue(false);
@@ -3293,6 +3294,105 @@ describe('AgentClient - startup telemetry', () => {
         }),
       ]),
     );
+  });
+});
+
+describe('AgentClient - personality voice identity', () => {
+  const originalIdentityUrl = process.env.LIBRECHAT_ECOSYSTEM_IDENTITY_URL;
+  const originalGatewayKey = process.env.LIBRECHAT_GATEWAY_API_KEY;
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    if (originalIdentityUrl == null) delete process.env.LIBRECHAT_ECOSYSTEM_IDENTITY_URL;
+    else process.env.LIBRECHAT_ECOSYSTEM_IDENTITY_URL = originalIdentityUrl;
+    if (originalGatewayKey == null) delete process.env.LIBRECHAT_GATEWAY_API_KEY;
+    else process.env.LIBRECHAT_GATEWAY_API_KEY = originalGatewayKey;
+    global.fetch = originalFetch;
+  });
+
+  function makeClient() {
+    const client = new AgentClient({
+      req: { user: { id: 'user-voice' }, config: {} },
+      res: {},
+      agent: {
+        id: 'agent-voice',
+        endpoint: EModelEndpoint.openAI,
+        provider: EModelEndpoint.openAI,
+        model_parameters: { model: 'voice-model' },
+      },
+      endpointTokenConfig: {},
+    });
+    client.responseMessageId = 'assistant-message-voice';
+    return client;
+  }
+
+  it('persists a verified immutable personality binding in response metadata', async () => {
+    process.env.LIBRECHAT_ECOSYSTEM_IDENTITY_URL = 'http://127.0.0.1:4317';
+    process.env.LIBRECHAT_GATEWAY_API_KEY = 'test-key';
+    const text = 'Only this reply should be spoken.';
+    const textSha256 = createHash('sha256').update(text).digest('hex');
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          schema: 'ecosystem-message-personality-identity/v1',
+          message_id: 'assistant-message-voice',
+          conversation_id: 'conversation-voice',
+          text_sha256: textSha256,
+          personality: {
+            id: 'lynn-web-capture',
+            source_version: 'revision-test',
+            source_hash: 'a'.repeat(64),
+          },
+          voice_profile: { status: 'unresolved', profile_id: null },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    const client = makeClient();
+    const identity = await client.resolvePersonalityVoiceIdentity([{ type: 'text', text }]);
+    expect(identity).toEqual(
+      expect.objectContaining({
+        status: 'bound_voice_unresolved',
+        messageId: 'assistant-message-voice',
+        textSha256,
+        personalityId: 'lynn-web-capture',
+        voiceProfileStatus: 'unresolved',
+        noSilentSubstitution: true,
+      }),
+    );
+    expect(global.fetch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: '/v1/message-identity',
+        search: '?message_id=assistant-message-voice',
+      }),
+      expect.objectContaining({ headers: { authorization: 'Bearer test-key' } }),
+    );
+    expect(client.buildResponseMetadata(identity).personalityVoice).toEqual(identity);
+  });
+
+  it('fails closed when the saved text hash does not match the displayed reply', async () => {
+    process.env.LIBRECHAT_ECOSYSTEM_IDENTITY_URL = 'http://127.0.0.1:4317';
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          schema: 'ecosystem-message-personality-identity/v1',
+          message_id: 'assistant-message-voice',
+          conversation_id: 'conversation-voice',
+          text_sha256: 'b'.repeat(64),
+          personality: { id: 'lynn-web-capture', source_hash: 'a'.repeat(64) },
+          voice_profile: { status: 'unresolved', profile_id: null },
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      ),
+    );
+    const identity = await makeClient().resolvePersonalityVoiceIdentity([
+      { type: 'text', text: 'Different displayed reply.' },
+    ]);
+    expect(identity).toEqual({
+      status: 'unavailable',
+      reason: 'identity_evidence_mismatch',
+      noSilentSubstitution: true,
+    });
   });
 });
 
