@@ -213,7 +213,7 @@ const HoverButtons = ({
   return (
     <div className="group visible flex justify-center gap-0.5 self-end focus-within:outline-none lg:justify-start">
       {/* Text to Speech */}
-      {TextToSpeech && !error && !isActiveStreamingMessage && (
+      {TextToSpeech && !error && !isActiveStreamingMessage && !isCreatedByUser && (
         <MessageAudio
           index={index}
           isLast={isLast}
@@ -226,7 +226,7 @@ const HoverButtons = ({
               icon={props.icon}
               isActive={props.isActive}
               isLast={isLast}
-              dataTestId={isLast && !isCreatedByUser ? 'read-aloud-button' : undefined}
+              dataTestId={isLast ? 'read-aloud-button' : undefined}
             />
           )}
         />

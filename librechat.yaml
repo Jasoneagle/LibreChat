@@ -257,13 +257,13 @@ registration:
 # Note: If balance.enabled is true, transactions will always be enabled
 # regardless of this setting to ensure balance tracking works correctly
 
-# speech:
-#   tts:
-#     openai:
-#       url: ''
-#       apiKey: '${TTS_API_KEY}'
-#       model: ''
-#       voices: ['']
+speech:
+  tts:
+    openai:
+      url: 'http://127.0.0.1:57002/v1/audio/speech'
+      apiKey: '${TTS_API_KEY}'
+      model: 'qwen3-tts-local'
+      voices: ['Ryan', 'Aiden']
 
 #
 #   stt:
