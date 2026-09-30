@@ -948,7 +948,9 @@ class AgentClient extends BaseClient {
         signal: AbortSignal.timeout(2000),
       });
       if (!response.ok) {
-        return unavailable(response.status === 404 ? 'identity_not_recorded' : 'identity_route_failed');
+        return unavailable(
+          response.status === 404 ? 'identity_not_recorded' : 'identity_route_failed',
+        );
       }
       const identity = await response.json();
       const text = Array.isArray(completion)
@@ -974,16 +976,21 @@ class AgentClient extends BaseClient {
       ) {
         return unavailable('identity_evidence_mismatch');
       }
+      const voiceProfileStatus = identity.voice_profile?.status ?? 'unresolved';
+      const voiceProfileId = identity.voice_profile?.profile_id ?? null;
       return {
-        status: 'bound_voice_unresolved',
+        status:
+          voiceProfileStatus === 'approved' && voiceProfileId
+            ? 'bound_approved'
+            : 'bound_voice_unresolved',
         messageId: identity.message_id,
         conversationId: identity.conversation_id,
         textSha256,
         personalityId: identity.personality.id,
         personalitySourceVersion: identity.personality.source_version ?? null,
         personalitySourceHash: identity.personality.source_hash,
-        voiceProfileStatus: identity.voice_profile?.status ?? 'unresolved',
-        voiceProfileId: identity.voice_profile?.profile_id ?? null,
+        voiceProfileStatus,
+        voiceProfileId,
         noSilentSubstitution: true,
       };
     } catch (error) {

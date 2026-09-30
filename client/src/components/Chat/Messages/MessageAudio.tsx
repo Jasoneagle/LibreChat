@@ -13,7 +13,7 @@ function MessageAudio(props: TMessageAudio) {
     [TTSEndpoints.external]: ExternalTTS,
   };
 
-  const SelectedTTS = TTSComponents[engineTTS];
+  const SelectedTTS = props.forceExternal ? ExternalTTS : TTSComponents[engineTTS];
   if (!SelectedTTS) {
     return null;
   }

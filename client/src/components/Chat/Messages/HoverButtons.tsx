@@ -70,6 +70,20 @@ const extractMessageContent = (message: TMessage): string => {
   return message.text || '';
 };
 
+type PersonalityVoiceMetadata = {
+  status?: string;
+  personalityId?: string;
+  voiceProfileId?: string | null;
+  voiceProfileStatus?: string;
+  reason?: string;
+};
+
+const getPersonalityVoiceMetadata = (message: TMessage): PersonalityVoiceMetadata | null => {
+  const metadata = message.metadata as Record<string, unknown> | undefined;
+  const value = metadata?.personalityVoice;
+  return value != null && typeof value === 'object' ? (value as PersonalityVoiceMetadata) : null;
+};
+
 const HoverButton = memo(
   ({
     id,
@@ -163,6 +177,16 @@ const HoverButtons = ({
   }
 
   const { isCreatedByUser, error } = message;
+  const personalityVoice = getPersonalityVoiceMetadata(message);
+  const approvedPersonalityVoice =
+    personalityVoice?.status === 'bound_approved' &&
+    personalityVoice.voiceProfileStatus === 'approved' &&
+    Boolean(personalityVoice.voiceProfileId);
+  const voiceUnavailableReason =
+    personalityVoice && !approvedPersonalityVoice
+      ? (personalityVoice.reason ??
+        `${personalityVoice.personalityId ?? 'Personality'} voice profile is ${personalityVoice.voiceProfileStatus ?? 'unresolved'}`)
+      : null;
 
   if (error === true) {
     return (
@@ -198,12 +222,16 @@ const HoverButtons = ({
           isLast={isLast}
           messageId={message.messageId}
           content={extractMessageContent(message)}
+          voiceOverride={approvedPersonalityVoice ? personalityVoice?.voiceProfileId : null}
+          voiceUnavailableReason={voiceUnavailableReason}
+          forceExternal={Boolean(personalityVoice)}
           renderButton={(props) => (
             <HoverButton
               onClick={props.onClick}
               title={props.title}
               icon={props.icon}
               isActive={props.isActive}
+              isDisabled={props.isDisabled}
               isLast={isLast}
               dataTestId={isLast ? 'read-aloud-button' : undefined}
             />

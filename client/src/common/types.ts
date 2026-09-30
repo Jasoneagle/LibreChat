@@ -542,6 +542,12 @@ export type TMessageAudio = {
   index: number;
   messageId: string;
   content: string;
+  /** Approved voice bound to this immutable assistant reply. */
+  voiceOverride?: string | null;
+  /** Visible reason that this reply cannot currently be spoken. */
+  voiceUnavailableReason?: string | null;
+  /** Personality-bound voices always use the configured local external engine. */
+  forceExternal?: boolean;
   className?: string;
   renderButton?: (props: {
     onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void;
