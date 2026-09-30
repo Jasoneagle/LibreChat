@@ -1,4 +1,5 @@
 require('events').EventEmitter.defaultMaxListeners = 100;
+const { createHash } = require('node:crypto');
 const { logger } = require('@librechat/data-schemas');
 const { getBufferString, HumanMessage } = require('@librechat/agents/langchain/messages');
 const {
@@ -901,8 +902,97 @@ class AgentClient extends BaseClient {
     });
 
     const completion = filterMalformedContentParts(this.contentParts);
-    const metadata = this.buildResponseMetadata();
+    const personalityVoice = await this.resolvePersonalityVoiceIdentity(completion);
+    const metadata = this.buildResponseMetadata(personalityVoice);
     return metadata ? { completion, metadata } : { completion };
+  }
+
+  /**
+   * Resolves the gateway's durable binding between this immutable assistant
+   * message id, its exact displayed text, and the personality that authored it.
+   * Missing or invalid evidence stays visibly unresolved; it never guesses from
+   * a sender label, avatar, or prose style and never blocks the text response.
+   *
+   * @param {MessageContentComplex[] | string} completion
+   * @returns {Promise<Record<string, unknown> | undefined>}
+   */
+  async resolvePersonalityVoiceIdentity(completion) {
+    const configuredUrl = process.env.LIBRECHAT_ECOSYSTEM_IDENTITY_URL;
+    if (!configuredUrl || !this.responseMessageId) {
+      return undefined;
+    }
+    const unavailable = (reason) => ({
+      status: 'unavailable',
+      reason,
+      noSilentSubstitution: true,
+    });
+    let url;
+    try {
+      url = new URL(configuredUrl);
+      if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)) {
+        return unavailable('identity_route_must_be_loopback');
+      }
+      url.pathname = '/v1/message-identity';
+      url.search = '';
+      url.searchParams.set('message_id', this.responseMessageId);
+    } catch {
+      return unavailable('identity_route_invalid');
+    }
+    try {
+      const headers = {};
+      if (process.env.LIBRECHAT_GATEWAY_API_KEY) {
+        headers.authorization = `Bearer ${process.env.LIBRECHAT_GATEWAY_API_KEY}`;
+      }
+      const response = await fetch(url, {
+        headers,
+        signal: AbortSignal.timeout(2000),
+      });
+      if (!response.ok) {
+        return unavailable(response.status === 404 ? 'identity_not_recorded' : 'identity_route_failed');
+      }
+      const identity = await response.json();
+      const text = Array.isArray(completion)
+        ? completion
+            .map((part) =>
+              typeof part === 'string'
+                ? part
+                : part?.type === 'text' && typeof part?.text === 'string'
+                  ? part.text
+                  : '',
+            )
+            .join('')
+        : typeof completion === 'string'
+          ? completion
+          : '';
+      const textSha256 = createHash('sha256').update(text, 'utf8').digest('hex');
+      if (
+        identity?.schema !== 'ecosystem-message-personality-identity/v1' ||
+        identity.message_id !== this.responseMessageId ||
+        identity.text_sha256 !== textSha256 ||
+        typeof identity?.personality?.id !== 'string' ||
+        !/^[0-9a-f]{64}$/i.test(String(identity?.personality?.source_hash ?? ''))
+      ) {
+        return unavailable('identity_evidence_mismatch');
+      }
+      return {
+        status: 'bound_voice_unresolved',
+        messageId: identity.message_id,
+        conversationId: identity.conversation_id,
+        textSha256,
+        personalityId: identity.personality.id,
+        personalitySourceVersion: identity.personality.source_version ?? null,
+        personalitySourceHash: identity.personality.source_hash,
+        voiceProfileStatus: identity.voice_profile?.status ?? 'unresolved',
+        voiceProfileId: identity.voice_profile?.profile_id ?? null,
+        noSilentSubstitution: true,
+      };
+    } catch (error) {
+      logger.warn('[AgentClient] Personality voice identity lookup failed', {
+        messageId: this.responseMessageId,
+        error: error?.name ?? 'unknown_error',
+      });
+      return unavailable('identity_route_unavailable');
+    }
   }
 
   /**
@@ -916,13 +1006,16 @@ class AgentClient extends BaseClient {
    *   usage?: import('librechat-data-provider').TResponseUsage,
    * } | undefined}
    */
-  buildResponseMetadata() {
+  buildResponseMetadata(personalityVoice) {
     /** @type {{
      *   thoughtSignatures?: Record<string, string>,
      *   contextUsage?: import('librechat-data-provider').TContextUsageEvent,
      *   usage?: import('librechat-data-provider').TResponseUsage,
      * }} */
     const metadata = {};
+    if (personalityVoice) {
+      metadata.personalityVoice = personalityVoice;
+    }
     const signatures = this.collectedThoughtSignatures;
     if (signatures && Object.keys(signatures).length > 0) {
       metadata.thoughtSignatures = signatures;
