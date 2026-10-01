@@ -67,12 +67,10 @@ const extractMessageContent = (message: TMessage): string => {
         if ('text' in part) {
           return part.text || '';
         }
+        // Hidden reasoning is not part of the displayed assistant reply and
+        // must never be included in reply-level read aloud.
         if ('think' in part) {
-          const think = part.think;
-          if (typeof think === 'string') {
-            return think;
-          }
-          return think && 'text' in think ? think.text || '' : '';
+          return '';
         }
         return '';
       })
@@ -86,6 +84,7 @@ type PersonalityVoiceMetadata = {
   status?: string;
   personalityId?: string;
   voiceProfileId?: string | null;
+  voiceEngineId?: string | null;
   voiceProfileStatus?: string;
   reason?: string;
 };
@@ -218,7 +217,8 @@ const HoverButtons = ({
   const approvedPersonalityVoice =
     personalityVoice?.status === 'bound_approved' &&
     personalityVoice.voiceProfileStatus === 'approved' &&
-    Boolean(personalityVoice.voiceProfileId);
+    Boolean(personalityVoice.voiceProfileId) &&
+    Boolean(personalityVoice.voiceEngineId);
   const voiceUnavailableReason =
     personalityVoice && !approvedPersonalityVoice
       ? (personalityVoice.reason ??
@@ -243,9 +243,10 @@ const HoverButtons = ({
           isLast={isLast}
           messageId={message.messageId}
           content={extractMessageContent(message)}
-          voiceOverride={approvedPersonalityVoice ? personalityVoice?.voiceProfileId : null}
+          voiceOverride={approvedPersonalityVoice ? personalityVoice?.voiceEngineId : null}
           voiceUnavailableReason={voiceUnavailableReason}
           forceExternal={Boolean(personalityVoice)}
+          durableReplySpeech={approvedPersonalityVoice}
           renderButton={(props) => (
             <HoverButton
               onClick={props.onClick}

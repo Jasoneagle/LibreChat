@@ -64,11 +64,13 @@ export function BrowserTTS({
     toggleSpeech();
   };
 
-  const title = voiceUnavailableReason
-    ? `Read aloud unavailable: ${voiceUnavailableReason}`
-    : isSpeaking === true
+  let title =
+    isSpeaking === true || (durableReplySpeech && isLoading)
       ? localize('com_ui_stop')
       : localize('com_ui_read_aloud');
+  if (voiceUnavailableReason) {
+    title = `Read aloud unavailable: ${voiceUnavailableReason}`;
+  }
 
   return (
     <>
@@ -77,7 +79,7 @@ export function BrowserTTS({
           onClick: handleClick,
           title: title,
           icon: renderIcon(),
-          isActive: isSpeaking,
+          isActive: isSpeaking || (durableReplySpeech && isLoading),
           isDisabled: Boolean(voiceUnavailableReason),
           className,
         })
@@ -118,6 +120,7 @@ export function ExternalTTS({
   renderButton,
   voiceOverride,
   voiceUnavailableReason,
+  durableReplySpeech,
 }: TMessageAudio) {
   const localize = useLocalize();
   const playbackRate = useRecoilValue(store.playbackRate);
@@ -128,6 +131,7 @@ export function ExternalTTS({
     messageId,
     content,
     voiceOverride,
+    durableReplySpeech,
   });
 
   const renderIcon = () => {
@@ -141,6 +145,11 @@ export function ExternalTTS({
 
     return <VolumeIcon className="icon-md-heavy h-[18px] w-[18px]" />;
   };
+
+  let title = isSpeaking === true ? localize('com_ui_stop') : localize('com_ui_read_aloud');
+  if (voiceUnavailableReason) {
+    title = `Read aloud unavailable: ${voiceUnavailableReason}`;
+  }
 
   useEffect(() => {
     const messageAudio = document.getElementById(`audio-${messageId}`) as HTMLAudioElement | null;
@@ -171,11 +180,7 @@ export function ExternalTTS({
             }
             toggleSpeech();
           },
-          title: voiceUnavailableReason
-            ? `Read aloud unavailable: ${voiceUnavailableReason}`
-            : isSpeaking === true
-              ? localize('com_ui_stop')
-              : localize('com_ui_read_aloud'),
+          title,
           icon: renderIcon(),
           isActive: isSpeaking,
           isDisabled: Boolean(voiceUnavailableReason),

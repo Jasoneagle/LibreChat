@@ -3620,19 +3620,19 @@ class AgentClient extends BaseClient {
         );
       }
       const identity = await response.json();
-      const text = Array.isArray(completion)
-        ? completion
-            .map((part) =>
-              typeof part === 'string'
-                ? part
-                : part?.type === 'text' && typeof part?.text === 'string'
-                  ? part.text
-                  : '',
-            )
-            .join('')
-        : typeof completion === 'string'
-          ? completion
-          : '';
+      let text = '';
+      if (Array.isArray(completion)) {
+        text = completion
+          .map((part) => {
+            if (typeof part === 'string') {
+              return part;
+            }
+            return part?.type === 'text' && typeof part?.text === 'string' ? part.text : '';
+          })
+          .join('');
+      } else if (typeof completion === 'string') {
+        text = completion;
+      }
       const textSha256 = createHash('sha256').update(text, 'utf8').digest('hex');
       if (
         identity?.schema !== 'ecosystem-message-personality-identity/v1' ||
@@ -3645,9 +3645,10 @@ class AgentClient extends BaseClient {
       }
       const voiceProfileStatus = identity.voice_profile?.status ?? 'unresolved';
       const voiceProfileId = identity.voice_profile?.profile_id ?? null;
+      const voiceEngineId = identity.voice_profile?.engine_voice_id ?? null;
       return {
         status:
-          voiceProfileStatus === 'approved' && voiceProfileId
+          voiceProfileStatus === 'approved' && voiceProfileId && voiceEngineId
             ? 'bound_approved'
             : 'bound_voice_unresolved',
         messageId: identity.message_id,
@@ -3658,6 +3659,7 @@ class AgentClient extends BaseClient {
         personalitySourceHash: identity.personality.source_hash,
         voiceProfileStatus,
         voiceProfileId,
+        voiceEngineId,
         noSilentSubstitution: true,
       };
     } catch (error) {
