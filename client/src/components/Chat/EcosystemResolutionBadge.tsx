@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { useLocalize } from '~/hooks';
 
 type SelectorIdentity = {
   id?: string;
@@ -18,6 +19,7 @@ const SELECTORS = ['personality', 'brain', 'worker', 'node'] as const;
 
 /** Shows the provider-neutral execution combination when the local selector API is available. */
 export default function EcosystemResolutionBadge() {
+  const localize = useLocalize();
   const { conversationId } = useParams<{ conversationId?: string }>();
   const [state, setState] = useState<SelectorState | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
@@ -71,7 +73,7 @@ export default function EcosystemResolutionBadge() {
         className="cursor-pointer truncate"
         title={`Personality: ${values[0]} · Brain: ${values[1]} · Worker: ${values[2]} · Node: ${values[3]}`}
       >
-        Resolved: {values.join(' · ')}
+        {values.join(' · ')}
       </summary>
       <div className="mt-2 grid gap-1 p-1" aria-label="Independent ecosystem selectors">
         {SELECTORS.map((selector) => (
@@ -89,7 +91,7 @@ export default function EcosystemResolutionBadge() {
               className="rounded border border-border-light px-1"
               onClick={() => void update(selector)}
             >
-              Save
+              {localize('com_ui_save')}
             </button>
           </label>
         ))}
