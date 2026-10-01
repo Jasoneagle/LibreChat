@@ -15,10 +15,18 @@ type TUseTextToSpeech = {
   isLast?: boolean;
   index?: number;
   voiceOverride?: string | null;
+  durableReplySpeech?: boolean;
 };
 
 const useTTSExternal = (props?: TUseTextToSpeech) => {
-  const { messageId, content, isLast = false, index = 0, voiceOverride } = props ?? {};
+  const {
+    messageId,
+    content,
+    isLast = false,
+    index = 0,
+    voiceOverride,
+    durableReplySpeech,
+  } = props ?? {};
 
   const isMouseDownRef = useRef(false);
   const timerRef = useRef<number | undefined>(undefined);
@@ -42,6 +50,7 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
     isLast,
     index,
     voiceOverride,
+    durableReplySpeech,
   });
 
   useEffect(() => {
@@ -78,7 +87,7 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
   };
 
   const toggleSpeech = () => {
-    if (isSpeaking === true) {
+    if (isSpeaking === true || (durableReplySpeech && isLoading)) {
       cancelSpeech();
       pauseGlobalAudio();
     } else {

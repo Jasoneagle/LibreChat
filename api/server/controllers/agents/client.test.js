@@ -95,7 +95,11 @@ describe('AgentClient - personality voice identity', () => {
             source_version: 'revision-test',
             source_hash: 'a'.repeat(64),
           },
-          voice_profile: { status: 'unresolved', profile_id: null },
+          voice_profile: {
+            status: 'approved',
+            profile_id: 'lynn-voice-v1',
+            engine_voice_id: 'Lynn-v1',
+          },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
@@ -104,11 +108,13 @@ describe('AgentClient - personality voice identity', () => {
     const identity = await client.resolvePersonalityVoiceIdentity([{ type: 'text', text }]);
     expect(identity).toEqual(
       expect.objectContaining({
-        status: 'bound_voice_unresolved',
+        status: 'bound_approved',
         messageId: 'assistant-message-voice',
         textSha256,
         personalityId: 'lynn-web-capture',
-        voiceProfileStatus: 'unresolved',
+        voiceProfileStatus: 'approved',
+        voiceProfileId: 'lynn-voice-v1',
+        voiceEngineId: 'Lynn-v1',
         noSilentSubstitution: true,
       }),
     );

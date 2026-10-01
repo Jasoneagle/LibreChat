@@ -548,6 +548,8 @@ export type TMessageAudio = {
   voiceUnavailableReason?: string | null;
   /** Personality-bound voices always use the configured local external engine. */
   forceExternal?: boolean;
+  /** Use the exact-message, restart-safe local speech job for an approved personality voice. */
+  durableReplySpeech?: boolean;
   className?: string;
   renderButton?: (props: {
     onClick: (e?: React.MouseEvent<HTMLButtonElement>) => void;
