@@ -1,3 +1,6 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
+
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useRecoilValue } from 'recoil';
 import { useToastContext } from '@librechat/client';
@@ -5,6 +8,7 @@ import { useTextToSpeechMutation, useVoicesQuery } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import {
   confirmReplySpeechPlayback,
+  controlReplySpeechJob,
   createReplySpeechJob,
   fetchReplySpeechAudio,
   synthesizeNextReplySpeechChunk,
@@ -51,6 +55,7 @@ function useTextToSpeechExternal({
 
   const promiseAudioRef = useRef<HTMLAudioElement | null>(null);
   const durableAbortRef = useRef<AbortController | null>(null);
+  const durableJobIdRef = useRef<string | null>(null);
 
   /* Global Audio Variables */
   const globalIsFetching = useRecoilValue(store.globalAudioFetchingFamily(index));
@@ -218,7 +223,11 @@ function useTextToSpeechExternal({
     setDurableLoading(true);
     try {
       let { job } = await createReplySpeechJob(token, messageId, text, controller.signal);
-      const startIndex = job.next_chunk_index >= job.chunks.length ? 0 : job.next_chunk_index;
+      durableJobIdRef.current = job.job_id;
+      if (job.next_chunk_index >= job.chunks.length || job.state === 'cancelled') {
+        job = await controlReplySpeechJob(token, job.job_id, 'replay', undefined, controller.signal);
+      }
+      const startIndex = job.next_chunk_index;
       for (let chunkIndex = startIndex; chunkIndex < job.chunks.length; chunkIndex += 1) {
         if (!job.chunks[chunkIndex].audio_sha256) {
           ({ job } = await synthesizeNextReplySpeechChunk(token, job.job_id, controller.signal));
@@ -278,6 +287,12 @@ function useTextToSpeechExternal({
   };
 
   const cancelSpeech = () => {
+    const durableJobId = durableJobIdRef.current;
+    if (durableJobId) {
+      void controlReplySpeechJob(token, durableJobId, 'cancel', 'user stop').catch((error) => {
+        console.error('Failed to persist reply speech stop', error);
+      });
+    }
     durableAbortRef.current?.abort();
     durableAbortRef.current = null;
     const messageAudio = document.getElementById(`audio-${messageId}`) as HTMLAudioElement | null;

@@ -1,6 +1,10 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
+
 import { webcrypto } from 'node:crypto';
 import {
   createReplySpeechJob,
+  controlReplySpeechJob,
   fetchReplySpeechAudio,
   synthesizeNextReplySpeechChunk,
 } from './replySpeechClient';
@@ -39,7 +43,12 @@ describe('replySpeechClient', () => {
   });
 
   it('creates and advances one authenticated exact-reply job', async () => {
-    const job = { job_id: 'a'.repeat(64), next_chunk_index: 0, chunks: [] };
+    const job = {
+      job_id: 'a'.repeat(64),
+      state: 'queued' as const,
+      next_chunk_index: 0,
+      chunks: [],
+    };
     const fetchMock = installFetch(
       jest
         .fn()
@@ -108,6 +117,29 @@ describe('replySpeechClient', () => {
 
     await expect(fetchReplySpeechAudio('jwt', 'a'.repeat(64), 0, expectedSha256)).rejects.toThrow(
       'reply_speech_audio_identity_mismatch',
+    );
+  });
+
+  it('sends an authenticated bounded lifecycle control', async () => {
+    const job = {
+      job_id: 'a'.repeat(64),
+      state: 'paused' as const,
+      next_chunk_index: 0,
+      chunks: [],
+    };
+    const fetchMock = installFetch(
+      jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => job }),
+    );
+
+    await controlReplySpeechJob('jwt', job.job_id, 'pause', 'user pause');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/files/speech/tts/reply-job/${job.job_id}/pause`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer jwt' }),
+        body: JSON.stringify({ reason: 'user pause' }),
+      }),
     );
   });
 });

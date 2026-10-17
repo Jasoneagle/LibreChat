@@ -1,3 +1,6 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
+
 const { ReplySpeechGateway } = require('./ReplySpeechGateway');
 
 const JOB_ID = 'a'.repeat(64);
@@ -65,5 +68,23 @@ describe('ReplySpeechGateway', () => {
         status: 422,
       },
     );
+  });
+
+  it('forwards only bounded lifecycle controls to the loopback gateway', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(response({ state: 'paused' }));
+    const gateway = new ReplySpeechGateway({ apiKey: 'secret-key', fetchImpl });
+
+    const result = await gateway.controlJob(JOB_ID, 'pause', { reason: 'user pause' });
+
+    expect(result.state).toBe('paused');
+    expect(fetchImpl).toHaveBeenCalledWith(
+      `http://127.0.0.1:4317/v1/speech/jobs/${JOB_ID}/pause`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ authorization: 'Bearer secret-key' }),
+        body: JSON.stringify({ reason: 'user pause' }),
+      }),
+    );
+    expect(() => gateway.controlJob(JOB_ID, 'delete')).toThrow('speech_job_operation_invalid');
   });
 });

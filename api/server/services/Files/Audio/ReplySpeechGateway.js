@@ -1,3 +1,6 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
+
 const DEFAULT_GATEWAY_URL = 'http://127.0.0.1:4317';
 const JOB_ID = /^[a-f0-9]{64}$/i;
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
@@ -103,6 +106,19 @@ class ReplySpeechGateway {
     return this.requestJson(`/v1/speech/jobs/${requireJobId(jobId)}/playback-boundary`, {
       method: 'POST',
       body: { chunk_index: normalizedChunkIndex, confirmed_offset: confirmedOffset },
+    });
+  }
+
+  controlJob(jobId, operation, { reason = null } = {}) {
+    if (!['pause', 'resume', 'cancel', 'replay'].includes(operation)) {
+      throw new Error('speech_job_operation_invalid');
+    }
+    if (reason != null && (typeof reason !== 'string' || reason.length > 500)) {
+      throw new Error('speech_job_reason_invalid');
+    }
+    return this.requestJson(`/v1/speech/jobs/${requireJobId(jobId)}/${operation}`, {
+      method: 'POST',
+      body: reason == null ? {} : { reason },
     });
   }
 

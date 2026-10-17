@@ -1,3 +1,6 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
+
 const multer = require('multer');
 const express = require('express');
 const {
@@ -70,6 +73,24 @@ router.post(
     }
   },
 );
+
+for (const operation of ['pause', 'resume', 'cancel', 'replay']) {
+  router.post(
+    `/reply-job/:jobId/${operation}`,
+    express.json({ limit: '4kb' }),
+    async (req, res) => {
+      try {
+        res.status(200).json(
+          await replySpeechGateway().controlJob(req.params.jobId, operation, {
+            reason: req.body?.reason,
+          }),
+        );
+      } catch (error) {
+        replySpeechError(res, error);
+      }
+    },
+  );
+}
 
 router.get('/reply-job/:jobId/chunks/:chunkIndex/audio', async (req, res) => {
   try {

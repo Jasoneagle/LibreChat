@@ -1,3 +1,6 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
+
 export type ReplySpeechChunk = {
   index: number;
   start: number;
@@ -7,7 +10,17 @@ export type ReplySpeechChunk = {
 
 export type ReplySpeechJob = {
   job_id: string;
+  state:
+    | 'queued'
+    | 'synthesizing'
+    | 'ready'
+    | 'playing'
+    | 'paused'
+    | 'completed'
+    | 'cancelled'
+    | 'failed';
   next_chunk_index: number;
+  replay_count?: number;
   chunks: ReplySpeechChunk[];
 };
 
@@ -108,5 +121,18 @@ export const confirmReplySpeechPlayback = async (
       chunk_index: chunk.index,
       confirmed_offset: chunk.end - chunk.start,
     }),
+    signal,
+  });
+
+export const controlReplySpeechJob = async (
+  token: string | undefined,
+  jobId: string,
+  operation: 'pause' | 'resume' | 'cancel' | 'replay',
+  reason?: string,
+  signal?: AbortSignal,
+) =>
+  request<ReplySpeechJob>(`/api/files/speech/tts/reply-job/${jobId}/${operation}`, token, {
+    method: 'POST',
+    body: JSON.stringify(reason ? { reason } : {}),
     signal,
   });
