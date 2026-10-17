@@ -87,4 +87,16 @@ describe('ReplySpeechGateway', () => {
     );
     expect(() => gateway.controlJob(JOB_ID, 'delete')).toThrow('speech_job_operation_invalid');
   });
+
+  it('forwards an exact paragraph target and rejects invalid indexes', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(response({ state: 'paused', current_paragraph_index: 2 }));
+    const gateway = new ReplySpeechGateway({ apiKey: 'secret-key', fetchImpl });
+
+    const result = await gateway.navigateParagraph(JOB_ID, 2);
+
+    expect(result.current_paragraph_index).toBe(2);
+    expect(fetchImpl.mock.calls[0][0]).toBe(`http://127.0.0.1:4317/v1/speech/jobs/${JOB_ID}/paragraph`);
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ paragraph_index: 2 });
+    expect(() => gateway.navigateParagraph(JOB_ID, -1)).toThrow('speech_paragraph_index_invalid');
+  });
 });

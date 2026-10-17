@@ -122,6 +122,16 @@ class ReplySpeechGateway {
     });
   }
 
+  navigateParagraph(jobId, paragraphIndex) {
+    if (!Number.isInteger(paragraphIndex) || paragraphIndex < 0) {
+      throw new Error('speech_paragraph_index_invalid');
+    }
+    return this.requestJson(`/v1/speech/jobs/${requireJobId(jobId)}/paragraph`, {
+      method: 'POST',
+      body: { paragraph_index: paragraphIndex },
+    });
+  }
+
   async readAudio(jobId, chunkIndex) {
     const response = await this.fetch(
       `${this.baseUrl}/v1/speech/jobs/${requireJobId(jobId)}/chunks/${requireChunkIndex(chunkIndex)}/audio`,

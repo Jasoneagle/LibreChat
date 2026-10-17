@@ -21,6 +21,15 @@ export type ReplySpeechJob = {
     | 'failed';
   next_chunk_index: number;
   replay_count?: number;
+  current_paragraph_index?: number;
+  paragraphs?: Array<{
+    index: number;
+    start: number;
+    end: number;
+    first_chunk_index: number;
+    last_chunk_index: number;
+    text_sha256: string;
+  }>;
   chunks: ReplySpeechChunk[];
 };
 
@@ -134,5 +143,17 @@ export const controlReplySpeechJob = async (
   request<ReplySpeechJob>(`/api/files/speech/tts/reply-job/${jobId}/${operation}`, token, {
     method: 'POST',
     body: JSON.stringify(reason ? { reason } : {}),
+    signal,
+  });
+
+export const navigateReplySpeechParagraph = async (
+  token: string | undefined,
+  jobId: string,
+  paragraphIndex: number,
+  signal?: AbortSignal,
+) =>
+  request<ReplySpeechJob>(`/api/files/speech/tts/reply-job/${jobId}/paragraph`, token, {
+    method: 'POST',
+    body: JSON.stringify({ paragraph_index: paragraphIndex }),
     signal,
   });

@@ -6,6 +6,7 @@ import {
   createReplySpeechJob,
   controlReplySpeechJob,
   fetchReplySpeechAudio,
+  navigateReplySpeechParagraph,
   synthesizeNextReplySpeechChunk,
 } from './replySpeechClient';
 
@@ -139,6 +140,33 @@ describe('replySpeechClient', () => {
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer jwt' }),
         body: JSON.stringify({ reason: 'user pause' }),
+      }),
+    );
+  });
+
+  it('sends an authenticated exact paragraph target', async () => {
+    const fetchMock = installFetch(
+      jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_id: 'a'.repeat(64),
+          state: 'paused',
+          current_paragraph_index: 2,
+          next_chunk_index: 4,
+          chunks: [],
+        }),
+      }),
+    );
+
+    await navigateReplySpeechParagraph('jwt', 'a'.repeat(64), 2);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/files/speech/tts/reply-job/${'a'.repeat(64)}/paragraph`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer jwt' }),
+        body: JSON.stringify({ paragraph_index: 2 }),
       }),
     );
   });

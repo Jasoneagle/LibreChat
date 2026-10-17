@@ -92,6 +92,20 @@ for (const operation of ['pause', 'resume', 'cancel', 'replay']) {
   );
 }
 
+router.post(
+  '/reply-job/:jobId/paragraph',
+  express.json({ limit: '4kb' }),
+  async (req, res) => {
+    try {
+      res.status(200).json(
+        await replySpeechGateway().navigateParagraph(req.params.jobId, req.body?.paragraph_index),
+      );
+    } catch (error) {
+      replySpeechError(res, error);
+    }
+  },
+);
+
 router.get('/reply-job/:jobId/chunks/:chunkIndex/audio', async (req, res) => {
   try {
     const audio = await replySpeechGateway().readAudio(req.params.jobId, req.params.chunkIndex);
