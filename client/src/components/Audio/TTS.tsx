@@ -92,6 +92,11 @@ export function BrowserTTS({
           {renderIcon()}
         </button>
       )}
+      {voiceUnavailableReason && (
+        <span className="self-center text-xs text-text-secondary" role="status" title={title}>
+          {localize('com_ui_voice_unavailable')}
+        </span>
+      )}
       <audio
         ref={audioRef}
         controls
@@ -257,6 +262,11 @@ export function ExternalTTS({
         >
           {renderIcon()}
         </button>
+      )}
+      {voiceUnavailableReason && (
+        <span className="self-center text-xs text-text-secondary" role="status" title={title}>
+          {localize('com_ui_voice_unavailable')}
+        </span>
       )}
       <audio
         ref={audioRef}

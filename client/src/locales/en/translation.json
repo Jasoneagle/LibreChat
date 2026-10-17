@@ -1897,6 +1897,7 @@
   "com_ui_read_aloud_control_error": "Read aloud control failed: {{0}}",
   "com_ui_read_aloud_failed": "Read aloud failed: {{0}}",
   "com_ui_read_aloud_unavailable": "Read aloud unavailable: {{0}}",
+  "com_ui_voice_unavailable": "Voice unavailable",
   "com_ui_pause": "Pause",
   "com_ui_resume": "Resume",
   "com_ui_replay": "Replay",
