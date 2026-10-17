@@ -1,3 +1,5 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Copy, Check } from 'lucide';
 import { useRecoilState } from 'recoil';
@@ -253,7 +255,7 @@ const HoverButtons = ({
               title={props.title}
               icon={props.icon}
               isActive={props.isActive}
-              isDisabled={props.isDisabled}
+              disabled={props.isDisabled}
               isLast={isLast}
               dataTestId={isLast ? 'read-aloud-button' : undefined}
             />

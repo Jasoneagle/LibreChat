@@ -1,5 +1,8 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
 /* eslint-disable jsx-a11y/media-has-caption */
 import { useEffect } from 'react';
+import { Pause, Play, RotateCcw, SkipBack, SkipForward, Square } from 'lucide-react';
 import { useRecoilValue } from 'recoil';
 import { VolumeIcon, VolumeMuteIcon, Spinner } from '@librechat/client';
 import type { TMessageAudio } from '~/common';
@@ -15,6 +18,7 @@ export function BrowserTTS({
   className,
   renderButton,
   voiceUnavailableReason,
+  durableReplySpeech,
 }: TMessageAudio) {
   const localize = useLocalize();
   const playbackRate = useRecoilValue(store.playbackRate);
@@ -69,7 +73,7 @@ export function BrowserTTS({
       ? localize('com_ui_stop')
       : localize('com_ui_read_aloud');
   if (voiceUnavailableReason) {
-    title = `Read aloud unavailable: ${voiceUnavailableReason}`;
+    title = localize('com_ui_read_aloud_unavailable', { 0: voiceUnavailableReason });
   }
 
   return (
@@ -125,7 +129,17 @@ export function ExternalTTS({
   const localize = useLocalize();
   const playbackRate = useRecoilValue(store.playbackRate);
 
-  const { toggleSpeech, isSpeaking, isLoading, audioRef } = useTTSExternal({
+  const {
+    toggleSpeech,
+    isSpeaking,
+    isLoading,
+    audioRef,
+    durableJob,
+    stopSpeech,
+    replaySpeech,
+    previousParagraph,
+    nextParagraph,
+  } = useTTSExternal({
     isLast,
     index,
     messageId,
@@ -146,9 +160,15 @@ export function ExternalTTS({
     return <VolumeIcon className="icon-md-heavy h-[18px] w-[18px]" />;
   };
 
-  let title = isSpeaking === true ? localize('com_ui_stop') : localize('com_ui_read_aloud');
+  let title = isSpeaking
+    ? durableReplySpeech
+      ? localize('com_ui_pause')
+      : localize('com_ui_stop')
+    : durableReplySpeech && durableJob?.state === 'paused'
+      ? localize('com_ui_resume')
+      : localize('com_ui_read_aloud');
   if (voiceUnavailableReason) {
-    title = `Read aloud unavailable: ${voiceUnavailableReason}`;
+    title = localize('com_ui_read_aloud_unavailable', { 0: voiceUnavailableReason });
   }
 
   useEffect(() => {
@@ -170,22 +190,60 @@ export function ExternalTTS({
   return (
     <>
       {renderButton ? (
-        renderButton({
-          onClick: () => {
-            if (voiceUnavailableReason) {
-              return;
-            }
-            if (audioRef.current) {
-              audioRef.current.muted = false;
-            }
-            toggleSpeech();
-          },
-          title,
-          icon: renderIcon(),
-          isActive: isSpeaking,
-          isDisabled: Boolean(voiceUnavailableReason),
-          className,
-        })
+        <>
+          {renderButton({
+            onClick: () => {
+              if (voiceUnavailableReason) {
+                return;
+              }
+              if (audioRef.current) {
+                audioRef.current.muted = false;
+              }
+              toggleSpeech();
+            },
+            title,
+            icon:
+              durableReplySpeech && isSpeaking ? (
+                <Pause size={18} />
+              ) : durableReplySpeech && durableJob?.state === 'paused' ? (
+                <Play size={18} />
+              ) : (
+                renderIcon()
+              ),
+            isActive: isSpeaking,
+            isDisabled: Boolean(voiceUnavailableReason),
+            className,
+          })}
+          {durableReplySpeech && durableJob && (
+            <>
+              {renderButton({
+                onClick: previousParagraph,
+                title: localize('com_ui_previous_paragraph'),
+                icon: <SkipBack size={18} />,
+                isDisabled: (durableJob.current_paragraph_index ?? 0) <= 0,
+              })}
+              {renderButton({
+                onClick: stopSpeech,
+                title: localize('com_ui_stop'),
+                icon: <Square size={17} />,
+                isDisabled: durableJob.state === 'cancelled',
+              })}
+              {renderButton({
+                onClick: replaySpeech,
+                title: localize('com_ui_replay'),
+                icon: <RotateCcw size={18} />,
+              })}
+              {renderButton({
+                onClick: nextParagraph,
+                title: localize('com_ui_next_paragraph'),
+                icon: <SkipForward size={18} />,
+                isDisabled:
+                  (durableJob.current_paragraph_index ?? 0) >=
+                  Math.max((durableJob.paragraphs?.length ?? 1) - 1, 0),
+              })}
+            </>
+          )}
+        </>
       ) : (
         <button
           onClickCapture={() => {

@@ -6,12 +6,14 @@ import { useRecoilValue } from 'recoil';
 import { useToastContext } from '@librechat/client';
 import { useTextToSpeechMutation, useVoicesQuery } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
+import type { ReplySpeechJob } from './replySpeechClient';
 import {
   confirmReplySpeechPlayback,
   confirmReplySpeechPosition,
   controlReplySpeechJob,
   createReplySpeechJob,
   fetchReplySpeechAudio,
+  navigateReplySpeechParagraph,
   synthesizeNextReplySpeechChunk,
 } from './replySpeechClient';
 import store from '~/store';
@@ -51,12 +53,21 @@ function useTextToSpeechExternal({
 
   const [downloadFile, setDownloadFile] = useState(false);
   const [durableLoading, setDurableLoading] = useState(false);
+  const [durableJob, setDurableJob] = useState<ReplySpeechJob | null>(null);
   const selectedVoice = voiceOverride ?? voice ?? '';
   const cacheKey = (text: string) => `tts:${selectedVoice}:${text}`;
+  const showDurableControlError = (error: unknown) =>
+    showToast({
+      message: localize('com_ui_read_aloud_control_error', {
+        0: error instanceof Error ? error.message : String(error),
+      }),
+      status: 'error',
+    });
 
   const promiseAudioRef = useRef<HTMLAudioElement | null>(null);
   const durableAbortRef = useRef<AbortController | null>(null);
   const durableJobIdRef = useRef<string | null>(null);
+  const suppressPositionSaveRef = useRef(false);
 
   /* Global Audio Variables */
   const globalIsFetching = useRecoilValue(store.globalAudioFetchingFamily(index));
@@ -179,7 +190,10 @@ function useTextToSpeechExternal({
       let saveChain = Promise.resolve();
       const savePosition = (force = false) => {
         const positionMs = Math.max(0, Math.floor(audio.currentTime * 1000));
-        if (positionMs <= lastQueuedPositionMs || (!force && positionMs - lastQueuedPositionMs < 1000)) {
+        if (
+          positionMs <= lastQueuedPositionMs ||
+          (!force && positionMs - lastQueuedPositionMs < 1000)
+        ) {
           return;
         }
         lastQueuedPositionMs = positionMs;
@@ -207,7 +221,9 @@ function useTextToSpeechExternal({
         }
         settled = true;
         audio.pause();
-        savePosition(true);
+        if (!suppressPositionSaveRef.current) {
+          savePosition(true);
+        }
         cleanup();
         reject(new DOMException('Reply speech stopped', 'AbortError'));
       };
@@ -257,17 +273,33 @@ function useTextToSpeechExternal({
     setDurableLoading(true);
     try {
       let { job } = await createReplySpeechJob(token, messageId, text, controller.signal);
+      setDurableJob(job);
       durableJobIdRef.current = job.job_id;
       if (job.next_chunk_index >= job.chunks.length || job.state === 'cancelled') {
-        job = await controlReplySpeechJob(token, job.job_id, 'replay', undefined, controller.signal);
+        job = await controlReplySpeechJob(
+          token,
+          job.job_id,
+          'replay',
+          undefined,
+          controller.signal,
+        );
+        setDurableJob(job);
       }
       if (job.state === 'paused') {
-        job = await controlReplySpeechJob(token, job.job_id, 'resume', undefined, controller.signal);
+        job = await controlReplySpeechJob(
+          token,
+          job.job_id,
+          'resume',
+          undefined,
+          controller.signal,
+        );
+        setDurableJob(job);
       }
       const startIndex = job.next_chunk_index;
       for (let chunkIndex = startIndex; chunkIndex < job.chunks.length; chunkIndex += 1) {
         if (!job.chunks[chunkIndex].audio_sha256) {
           ({ job } = await synthesizeNextReplySpeechChunk(token, job.job_id, controller.signal));
+          setDurableJob(job);
         }
         const chunk = job.chunks[chunkIndex];
         const audioBlob = await fetchReplySpeechAudio(
@@ -286,11 +318,12 @@ function useTextToSpeechExternal({
           controller.signal,
         );
         job = await confirmReplySpeechPlayback(token, job.job_id, chunk, controller.signal);
+        setDurableJob(job);
       }
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
         showToast({
-          message: `Read aloud failed: ${(error as Error).message}`,
+          message: localize('com_ui_read_aloud_failed', { 0: (error as Error).message }),
           status: 'error',
         });
       }
@@ -300,6 +333,69 @@ function useTextToSpeechExternal({
       }
       setDurableLoading(false);
       setIsSpeaking(false);
+    }
+  };
+
+  const pauseDurableSpeech = async () => {
+    const jobId = durableJobIdRef.current;
+    if (!jobId) {
+      return;
+    }
+    const audio = audioRef.current;
+    const shouldResumeOnFailure = audio != null && !audio.paused;
+    audio?.pause();
+    try {
+      const job = await controlReplySpeechJob(token, jobId, 'pause', 'user pause');
+      setDurableJob(job);
+      durableAbortRef.current?.abort();
+      durableAbortRef.current = null;
+      setIsSpeaking(false);
+    } catch (error) {
+      if (shouldResumeOnFailure) {
+        void audio?.play().catch(() => undefined);
+      }
+      showDurableControlError(error);
+      throw error;
+    }
+  };
+
+  const replayDurableSpeech = async (text: string) => {
+    try {
+      const jobId = durableJobIdRef.current;
+      suppressPositionSaveRef.current = true;
+      durableAbortRef.current?.abort();
+      suppressPositionSaveRef.current = false;
+      durableAbortRef.current = null;
+      if (jobId) {
+        setDurableJob(await controlReplySpeechJob(token, jobId, 'replay'));
+      }
+      await generateDurableReplySpeech(text);
+    } catch (error) {
+      showDurableControlError(error);
+      throw error;
+    }
+  };
+
+  const navigateDurableSpeechParagraph = async (text: string, direction: -1 | 1) => {
+    const jobId = durableJobIdRef.current;
+    if (!jobId || !durableJob?.paragraphs?.length) {
+      return;
+    }
+    const current = durableJob.current_paragraph_index ?? 0;
+    const target = Math.min(Math.max(current + direction, 0), durableJob.paragraphs.length - 1);
+    if (target === current) {
+      return;
+    }
+    try {
+      suppressPositionSaveRef.current = true;
+      durableAbortRef.current?.abort();
+      suppressPositionSaveRef.current = false;
+      durableAbortRef.current = null;
+      setDurableJob(await navigateReplySpeechParagraph(token, jobId, target));
+      await generateDurableReplySpeech(text);
+    } catch (error) {
+      showDurableControlError(error);
+      throw error;
     }
   };
 
@@ -332,11 +428,16 @@ function useTextToSpeechExternal({
   const cancelSpeech = () => {
     const durableJobId = durableJobIdRef.current;
     if (durableJobId) {
-      void controlReplySpeechJob(token, durableJobId, 'cancel', 'user stop').catch((error) => {
-        console.error('Failed to persist reply speech stop', error);
-      });
+      void controlReplySpeechJob(token, durableJobId, 'cancel', 'user stop')
+        .then(setDurableJob)
+        .catch((error) => {
+          showDurableControlError(error);
+          console.error('Failed to persist reply speech stop', error);
+        });
     }
+    suppressPositionSaveRef.current = true;
     durableAbortRef.current?.abort();
+    suppressPositionSaveRef.current = false;
     durableAbortRef.current = null;
     const messageAudio = document.getElementById(`audio-${messageId}`) as HTMLAudioElement | null;
     const pauseAudio = (currentElement: HTMLAudioElement | null) => {
@@ -382,6 +483,10 @@ function useTextToSpeechExternal({
     isLoading: isFetching || isLoading || durableLoading,
     audioRef,
     voices: voicesData,
+    durableJob,
+    pauseDurableSpeech,
+    replayDurableSpeech,
+    navigateDurableSpeechParagraph,
   };
 }
 

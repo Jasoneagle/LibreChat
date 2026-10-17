@@ -1,3 +1,5 @@
+// AI-system attribution: OpenAI Codex desktop (OpenAI); reported model gpt-6.1-sol;
+// task 01a0aca7-f6db-7543-8cf3-1d1e646a47ab; ACT1250; 2026-10-17.
 // client/src/hooks/Audio/useTTSExternal.ts
 import { useRef, useEffect, useState } from 'react';
 import { useRecoilState, useRecoilValue } from 'recoil';
@@ -43,6 +45,10 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
     generateSpeechExternal: generateSpeech,
     isLoading,
     voices,
+    durableJob,
+    pauseDurableSpeech,
+    replayDurableSpeech,
+    navigateDurableSpeechParagraph,
   } = useTextToSpeechExternal({
     setIsSpeaking,
     audioRef,
@@ -88,7 +94,13 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
 
   const toggleSpeech = () => {
     if (isSpeaking === true || (durableReplySpeech && isLoading)) {
-      cancelSpeech();
+      if (durableReplySpeech) {
+        void pauseDurableSpeech().catch((error) =>
+          logger.error('Failed to pause reply speech', error),
+        );
+      } else {
+        cancelSpeech();
+      }
       pauseGlobalAudio();
     } else {
       const messageContent = content ?? '';
@@ -98,6 +110,24 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
     }
   };
 
+  const parsedContent = () => {
+    const messageContent = content ?? '';
+    return typeof messageContent === 'string' ? messageContent : parseTextParts(messageContent);
+  };
+
+  const replaySpeech = () =>
+    void replayDurableSpeech(parsedContent()).catch((error) =>
+      logger.error('Failed to replay reply speech', error),
+    );
+  const previousParagraph = () =>
+    void navigateDurableSpeechParagraph(parsedContent(), -1).catch((error) =>
+      logger.error('Failed to select previous reply paragraph', error),
+    );
+  const nextParagraph = () =>
+    void navigateDurableSpeechParagraph(parsedContent(), 1).catch((error) =>
+      logger.error('Failed to select next reply paragraph', error),
+    );
+
   return {
     handleMouseDown,
     handleMouseUp,
@@ -106,6 +136,11 @@ const useTTSExternal = (props?: TUseTextToSpeech) => {
     isLoading,
     audioRef,
     voices,
+    durableJob,
+    stopSpeech: cancelSpeech,
+    replaySpeech,
+    previousParagraph,
+    nextParagraph,
   };
 };
 
