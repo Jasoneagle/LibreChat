@@ -6,6 +6,7 @@ export type ReplySpeechChunk = {
   start: number;
   end: number;
   audio_sha256?: string | null;
+  confirmed_playback_ms?: number;
 };
 
 export type ReplySpeechJob = {
@@ -130,6 +131,19 @@ export const confirmReplySpeechPlayback = async (
       chunk_index: chunk.index,
       confirmed_offset: chunk.end - chunk.start,
     }),
+    signal,
+  });
+
+export const confirmReplySpeechPosition = async (
+  token: string | undefined,
+  jobId: string,
+  chunkIndex: number,
+  positionMs: number,
+  signal?: AbortSignal,
+) =>
+  request<ReplySpeechJob>(`/api/files/speech/tts/reply-job/${jobId}/playback-position`, token, {
+    method: 'POST',
+    body: JSON.stringify({ chunk_index: chunkIndex, position_ms: positionMs }),
     signal,
   });
 

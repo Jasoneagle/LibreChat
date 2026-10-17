@@ -99,4 +99,22 @@ describe('ReplySpeechGateway', () => {
     expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({ paragraph_index: 2 });
     expect(() => gateway.navigateParagraph(JOB_ID, -1)).toThrow('speech_paragraph_index_invalid');
   });
+
+  it('forwards a bounded playback position and rejects invalid milliseconds', async () => {
+    const fetchImpl = jest.fn().mockResolvedValue(response({ state: 'playing' }));
+    const gateway = new ReplySpeechGateway({ apiKey: 'secret-key', fetchImpl });
+
+    await gateway.confirmPlaybackPosition(JOB_ID, { chunkIndex: 1, positionMs: 3250 });
+
+    expect(fetchImpl.mock.calls[0][0]).toBe(
+      `http://127.0.0.1:4317/v1/speech/jobs/${JOB_ID}/playback-position`,
+    );
+    expect(JSON.parse(fetchImpl.mock.calls[0][1].body)).toEqual({
+      chunk_index: 1,
+      position_ms: 3250,
+    });
+    expect(() =>
+      gateway.confirmPlaybackPosition(JOB_ID, { chunkIndex: 1, positionMs: -1 }),
+    ).toThrow('speech_playback_position_invalid');
+  });
 });

@@ -74,6 +74,23 @@ router.post(
   },
 );
 
+router.post(
+  '/reply-job/:jobId/playback-position',
+  express.json({ limit: '4kb' }),
+  async (req, res) => {
+    try {
+      res.status(200).json(
+        await replySpeechGateway().confirmPlaybackPosition(req.params.jobId, {
+          chunkIndex: req.body?.chunk_index,
+          positionMs: req.body?.position_ms,
+        }),
+      );
+    } catch (error) {
+      replySpeechError(res, error);
+    }
+  },
+);
+
 for (const operation of ['pause', 'resume', 'cancel', 'replay']) {
   router.post(
     `/reply-job/:jobId/${operation}`,

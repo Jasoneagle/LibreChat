@@ -8,6 +8,7 @@ import { useTextToSpeechMutation, useVoicesQuery } from '~/data-provider';
 import { useAuthContext, useLocalize } from '~/hooks';
 import {
   confirmReplySpeechPlayback,
+  confirmReplySpeechPosition,
   controlReplySpeechJob,
   createReplySpeechJob,
   fetchReplySpeechAudio,
@@ -158,7 +159,13 @@ function useTextToSpeechExternal({
     processAudio(formData);
   };
 
-  const playDurableAudio = (audioBlob: Blob, signal: AbortSignal) =>
+  const playDurableAudio = (
+    audioBlob: Blob,
+    jobId: string,
+    chunkIndex: number,
+    confirmedPlaybackMs: number,
+    signal: AbortSignal,
+  ) =>
     new Promise<void>((resolve, reject) => {
       const blobUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(blobUrl);
@@ -168,8 +175,28 @@ function useTextToSpeechExternal({
       audioRef.current = audio;
       promiseAudioRef.current = audio;
       let settled = false;
+      let lastQueuedPositionMs = confirmedPlaybackMs;
+      let saveChain = Promise.resolve();
+      const savePosition = (force = false) => {
+        const positionMs = Math.max(0, Math.floor(audio.currentTime * 1000));
+        if (positionMs <= lastQueuedPositionMs || (!force && positionMs - lastQueuedPositionMs < 1000)) {
+          return;
+        }
+        lastQueuedPositionMs = positionMs;
+        saveChain = saveChain
+          .then(() => confirmReplySpeechPosition(token, jobId, chunkIndex, positionMs))
+          .then(() => undefined)
+          .catch((error) => console.error('Failed to persist reply speech position', error));
+      };
+      const seekToConfirmedPosition = () => {
+        if (confirmedPlaybackMs > 0) {
+          audio.currentTime = confirmedPlaybackMs / 1000;
+        }
+      };
       const cleanup = () => {
         signal.removeEventListener('abort', abort);
+        audio.removeEventListener('loadedmetadata', seekToConfirmedPosition);
+        audio.removeEventListener('timeupdate', onTimeUpdate);
         audio.onended = null;
         audio.onerror = null;
         URL.revokeObjectURL(blobUrl);
@@ -180,10 +207,14 @@ function useTextToSpeechExternal({
         }
         settled = true;
         audio.pause();
+        savePosition(true);
         cleanup();
         reject(new DOMException('Reply speech stopped', 'AbortError'));
       };
+      const onTimeUpdate = () => savePosition();
       signal.addEventListener('abort', abort, { once: true });
+      audio.addEventListener('loadedmetadata', seekToConfirmedPosition, { once: true });
+      audio.addEventListener('timeupdate', onTimeUpdate);
       audio.onended = () => {
         if (settled) {
           return;
@@ -200,6 +231,9 @@ function useTextToSpeechExternal({
         cleanup();
         reject(new Error('reply_speech_audio_playback_failed'));
       };
+      if (audio.readyState >= 1) {
+        seekToConfirmedPosition();
+      }
       audio
         .play()
         .then(() => setIsSpeaking(true))
@@ -227,6 +261,9 @@ function useTextToSpeechExternal({
       if (job.next_chunk_index >= job.chunks.length || job.state === 'cancelled') {
         job = await controlReplySpeechJob(token, job.job_id, 'replay', undefined, controller.signal);
       }
+      if (job.state === 'paused') {
+        job = await controlReplySpeechJob(token, job.job_id, 'resume', undefined, controller.signal);
+      }
       const startIndex = job.next_chunk_index;
       for (let chunkIndex = startIndex; chunkIndex < job.chunks.length; chunkIndex += 1) {
         if (!job.chunks[chunkIndex].audio_sha256) {
@@ -241,7 +278,13 @@ function useTextToSpeechExternal({
           controller.signal,
         );
         setDurableLoading(false);
-        await playDurableAudio(audioBlob, controller.signal);
+        await playDurableAudio(
+          audioBlob,
+          job.job_id,
+          chunk.index,
+          chunk.confirmed_playback_ms ?? 0,
+          controller.signal,
+        );
         job = await confirmReplySpeechPlayback(token, job.job_id, chunk, controller.signal);
       }
     } catch (error) {

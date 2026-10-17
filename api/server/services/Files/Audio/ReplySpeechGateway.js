@@ -109,6 +109,17 @@ class ReplySpeechGateway {
     });
   }
 
+  confirmPlaybackPosition(jobId, { chunkIndex, positionMs }) {
+    const normalizedChunkIndex = requireChunkIndex(chunkIndex);
+    if (!Number.isInteger(positionMs) || positionMs < 0) {
+      throw new Error('speech_playback_position_invalid');
+    }
+    return this.requestJson(`/v1/speech/jobs/${requireJobId(jobId)}/playback-position`, {
+      method: 'POST',
+      body: { chunk_index: normalizedChunkIndex, position_ms: positionMs },
+    });
+  }
+
   controlJob(jobId, operation, { reason = null } = {}) {
     if (!['pause', 'resume', 'cancel', 'replay'].includes(operation)) {
       throw new Error('speech_job_operation_invalid');

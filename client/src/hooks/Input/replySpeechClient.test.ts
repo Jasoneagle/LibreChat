@@ -3,6 +3,7 @@
 
 import { webcrypto } from 'node:crypto';
 import {
+  confirmReplySpeechPosition,
   createReplySpeechJob,
   controlReplySpeechJob,
   fetchReplySpeechAudio,
@@ -167,6 +168,32 @@ describe('replySpeechClient', () => {
         method: 'POST',
         headers: expect.objectContaining({ Authorization: 'Bearer jwt' }),
         body: JSON.stringify({ paragraph_index: 2 }),
+      }),
+    );
+  });
+
+  it('sends an authenticated exact playback position', async () => {
+    const fetchMock = installFetch(
+      jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          job_id: 'a'.repeat(64),
+          state: 'playing',
+          next_chunk_index: 1,
+          chunks: [],
+        }),
+      }),
+    );
+
+    await confirmReplySpeechPosition('jwt', 'a'.repeat(64), 1, 3250);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/files/speech/tts/reply-job/${'a'.repeat(64)}/playback-position`,
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer jwt' }),
+        body: JSON.stringify({ chunk_index: 1, position_ms: 3250 }),
       }),
     );
   });
