@@ -165,16 +165,25 @@ export function ExternalTTS({
     return <VolumeIcon className="icon-md-heavy h-[18px] w-[18px]" />;
   };
 
-  let title = isSpeaking
-    ? durableReplySpeech
-      ? localize('com_ui_pause')
-      : localize('com_ui_stop')
-    : durableReplySpeech && durableJob?.state === 'paused'
-      ? localize('com_ui_resume')
-      : localize('com_ui_read_aloud');
+  let title = localize('com_ui_read_aloud');
+  if (isSpeaking) {
+    title = durableReplySpeech ? localize('com_ui_pause') : localize('com_ui_stop');
+  } else if (durableReplySpeech && durableJob?.state === 'paused') {
+    title = localize('com_ui_resume');
+  }
   if (voiceUnavailableReason) {
     title = localize('com_ui_read_aloud_unavailable', { 0: voiceUnavailableReason });
   }
+
+  const renderDurableIcon = () => {
+    if (durableReplySpeech && isSpeaking) {
+      return <Pause size={18} />;
+    }
+    if (durableReplySpeech && durableJob?.state === 'paused') {
+      return <Play size={18} />;
+    }
+    return renderIcon();
+  };
 
   useEffect(() => {
     const messageAudio = document.getElementById(`audio-${messageId}`) as HTMLAudioElement | null;
@@ -207,14 +216,7 @@ export function ExternalTTS({
               toggleSpeech();
             },
             title,
-            icon:
-              durableReplySpeech && isSpeaking ? (
-                <Pause size={18} />
-              ) : durableReplySpeech && durableJob?.state === 'paused' ? (
-                <Play size={18} />
-              ) : (
-                renderIcon()
-              ),
+            icon: renderDurableIcon(),
             isActive: isSpeaking,
             isDisabled: Boolean(voiceUnavailableReason),
             className,
