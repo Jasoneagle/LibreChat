@@ -1923,6 +1923,109 @@ html {
   }
 }
 
+/* Personality voice monitor: a compact, KITT-inspired line display bound to
+   the existing reply-speech lifecycle. It is visual-only and never controls
+   audio or microphone state. */
+@keyframes lc-voice-pulse-bar {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes lc-voice-pulse-scan {
+  0% {
+    transform: translateX(-44px);
+  }
+  50% {
+    transform: translateX(44px);
+  }
+  100% {
+    transform: translateX(-44px);
+  }
+}
+
+.lc-voice-pulse {
+  align-items: center;
+  border: 1px solid rgb(127 29 29 / 0.45);
+  border-radius: 9999px;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  margin-right: 0.25rem;
+  overflow: hidden;
+  position: relative;
+  width: 108px;
+}
+
+.lc-voice-pulse__rail {
+  background: rgb(248 113 113 / 0.28);
+  height: 1px;
+  left: 8px;
+  position: absolute;
+  right: 8px;
+}
+
+.lc-voice-pulse__bars {
+  align-items: center;
+  display: flex;
+  gap: 2px;
+  height: 24px;
+}
+
+.lc-voice-pulse__bar {
+  background: rgb(248 113 113 / 0.62);
+  border-radius: 9999px;
+  height: var(--voice-pulse-height);
+  transform: scaleY(0.25);
+  transform-origin: center;
+  width: 2px;
+}
+
+.lc-voice-pulse__scanner {
+  background: rgb(254 202 202);
+  box-shadow: 0 0 7px 2px rgb(239 68 68 / 0.85);
+  height: 20px;
+  opacity: 0;
+  position: absolute;
+  width: 2px;
+}
+
+.lc-voice-pulse[data-state='loading'] .lc-voice-pulse__bar {
+  animation: lc-dot-breathe 1.3s ease-in-out infinite;
+  animation-delay: var(--voice-pulse-delay);
+}
+
+.lc-voice-pulse[data-state='speaking'] .lc-voice-pulse__bar {
+  animation: lc-voice-pulse-bar 720ms ease-in-out infinite;
+  animation-delay: var(--voice-pulse-delay);
+  background: rgb(248 113 113);
+}
+
+.lc-voice-pulse[data-state='speaking'] .lc-voice-pulse__scanner {
+  animation: lc-voice-pulse-scan 1.2s ease-in-out infinite;
+  opacity: 1;
+}
+
+.lc-voice-pulse[data-state='unavailable'] {
+  filter: grayscale(1);
+  opacity: 0.48;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lc-voice-pulse__bar,
+  .lc-voice-pulse__scanner {
+    animation: none !important;
+  }
+
+  .lc-voice-pulse[data-state='speaking'] .lc-voice-pulse__bar {
+    transform: scaleY(0.72);
+  }
+}
+
 .shadow-stroke {
   position: relative;
 }

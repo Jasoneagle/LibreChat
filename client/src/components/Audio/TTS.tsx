@@ -9,6 +9,7 @@ import type { TMessageAudio } from '~/common';
 import { useLocalize, useTTSBrowser, useTTSExternal } from '~/hooks';
 import { logger } from '~/utils';
 import store from '~/store';
+import VoicePulseVisual from './VoicePulseVisual';
 
 export function BrowserTTS({
   isLast,
@@ -203,6 +204,13 @@ export function ExternalTTS({
 
   return (
     <>
+      {durableReplySpeech && (
+        <VoicePulseVisual
+          isSpeaking={isSpeaking}
+          isLoading={isLoading}
+          isUnavailable={Boolean(voiceUnavailableReason)}
+        />
+      )}
       {renderButton ? (
         <>
           {renderButton({
